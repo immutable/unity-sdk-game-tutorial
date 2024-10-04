@@ -16,6 +16,7 @@ using Immutable.Search.Model;
 using Newtonsoft.Json;
 using TMPro;
 using UnityEngine;
+using Action = Immutable.Orderbook.Model.Action;
 using ApiException = Immutable.Search.Client.ApiException;
 
 namespace HyperCasual.Runner
@@ -30,7 +31,6 @@ namespace HyperCasual.Runner
         [SerializeField] private TextMeshProUGUI m_DescriptionText;
 
         // Market
-        [SerializeField] private GameObject m_MarketContainer;
         [SerializeField] private TextMeshProUGUI m_FloorPriceText;
 
         [SerializeField] private TextMeshProUGUI m_LastTradePriceText;
@@ -41,12 +41,10 @@ namespace HyperCasual.Runner
         [SerializeField] private TextMeshProUGUI m_ContractTypeText;
 
         // Attributes
-        [SerializeField] private GameObject m_AttributesContainer;
         [SerializeField] private Transform m_AttributesListParent;
         [SerializeField] private AttributeView m_AttributeObj;
 
         // Listing
-        [SerializeField] private GameObject m_ListingContainer;
         [SerializeField] private TextMeshProUGUI m_AmountText;
         [SerializeField] private HyperCasualButton m_SellButton;
         [SerializeField] private HyperCasualButton m_CancelButton;
@@ -57,9 +55,8 @@ namespace HyperCasual.Runner
         private readonly List<AttributeView> m_Attributes = new();
 
         private readonly SearchApi m_SearchApi;
-        private readonly OrderbookApi m_TsApi;
+        private readonly OrderbookApi m_OrderbookApi;
 
-        private InventoryScreen.AssetType m_Type;
         private AssetModel m_Asset;
         private OldListing? m_Listing;
 
@@ -67,7 +64,7 @@ namespace HyperCasual.Runner
         {
             var tsConfig = new Configuration();
             tsConfig.BasePath = Config.BASE_URL;
-            m_TsApi = new OrderbookApi(tsConfig);
+            m_OrderbookApi = new OrderbookApi(tsConfig);
 
             var searchConfig = new Immutable.Search.Client.Configuration();
             searchConfig.BasePath = Config.BASE_URL;
@@ -111,9 +108,8 @@ namespace HyperCasual.Runner
         ///     Initialises the UI based on the asset.
         /// </summary>
         /// <param name="asset">The asset to display.</param>
-        public async void Initialise(InventoryScreen.AssetType assetType, AssetModel asset)
+        public async void Initialise(AssetModel asset)
         {
-            m_Type = assetType;
             m_Asset = asset;
 
             m_NameText.text = m_Asset.contract_type switch
@@ -126,99 +122,92 @@ namespace HyperCasual.Runner
             m_DescriptionText.text = m_Asset.description;
             m_DescriptionText.gameObject.SetActive(!string.IsNullOrEmpty(m_Asset.description));
 
+            // Details
             m_TokenIdText.text = $"Token ID: {m_Asset.token_id}";
             m_CollectionText.text = $"Collection: {m_Asset.contract_address}";
             m_ContractTypeText.text = $"Contract type: {m_Asset.contract_type}";
 
             // Clear existing attributes
             ClearAttributes();
-
-            // Download and display the image
-            m_Image.LoadUrl(m_Asset.image);
-
-            switch (m_Type)
+            
+            // Populate attributes
+            foreach (var a in m_Asset.attributes)
             {
-                case InventoryScreen.AssetType.Skin:
-                    // Populate attributes
-                    foreach (var a in m_Asset.attributes)
-                    {
-                        NFTMetadataAttribute attribute = new(traitType: a.trait_type,
-                            value: new NFTMetadataAttributeValue(a.value));
-                        var newAttribute = Instantiate(m_AttributeObj, m_AttributesListParent);
-                        newAttribute.gameObject.SetActive(true);
-                        newAttribute.Initialise(attribute);
-                        m_Attributes.Add(newAttribute);
-                    }
-
-                    // Check if asset is listed
-                    m_Listing = await GetActiveListingId();
-                    m_SellButton.gameObject.SetActive(m_Listing == null);
-                    m_CancelButton.gameObject.SetActive(m_Listing != null);
-
-                    // Price if it's listed
-                    m_AmountText.text = "-";
-                    if (m_Listing != null)
-                    {
-                        var amount = m_Listing.buy[0].amount;
-                        var quantity = (decimal)BigInteger.Parse(amount) / (decimal)BigInteger.Pow(10, 18);
-                        m_AmountText.text = $"{quantity} IMR";
-                    }
-                    else
-                    {
-                        m_AmountText.text = "Not listed";
-                    }
-
-                    m_FloorPriceText.text = "Floor price: -";
-                    m_LastTradePriceText.text = "Last trade price: -";
-                    GetMarketData();
-                    break;
-                case InventoryScreen.AssetType.Powerups:
-                    break;
+                NFTMetadataAttribute attribute = new(traitType: a.trait_type,
+                    value: new NFTMetadataAttributeValue(a.value));
+                var newAttribute = Instantiate(m_AttributeObj, m_AttributesListParent);
+                newAttribute.gameObject.SetActive(true);
+                newAttribute.Initialise(attribute);
+                m_Attributes.Add(newAttribute);
             }
 
-            m_ListingContainer.SetActive(m_Type == InventoryScreen.AssetType.Skin);
-            m_AttributesContainer.SetActive(m_Type == InventoryScreen.AssetType.Skin);
-            m_MarketContainer.SetActive(m_Type == InventoryScreen.AssetType.Skin);
+            // Check if asset is listed
+            m_Listing = await GetActiveListingId();
+            m_SellButton.gameObject.SetActive(m_Listing == null);
+            m_CancelButton.gameObject.SetActive(m_Listing != null);
+
+            // Price if it's listed
+            m_AmountText.text = "-";
+            if (m_Listing != null)
+            {
+                var amount = m_Listing.buy[0].amount;
+                var quantity = (decimal)BigInteger.Parse(amount) / (decimal)BigInteger.Pow(10, 18);
+                m_AmountText.text = $"{quantity} IMR";
+            }
+            else
+            {
+                m_AmountText.text = "Not listed";
+            }
+
+            GetMarketData();
+
+#pragma warning disable CS4014
+            m_Image.LoadUrl(m_Asset.image);
+#pragma warning restore CS4014
         }
 
         private async void GetMarketData()
         {
+            m_FloorPriceText.text = "Floor price: -";
+            m_LastTradePriceText.text = "Last trade price: -";
+            
             try
             {
                 var response = await m_SearchApi.QuotesForStacksAsync(Config.CHAIN_NAME, m_Asset.contract_address,
                     new List<Guid> { Guid.Parse(m_Asset.metadata_id) });
-                if (response.Result.Count > 0)
+                
+                if (response.Result.Count <= 0) return;
+                
+                var quote = response.Result[0];
+                var market = quote.MarketStack;
+
+                if (market?.FloorListing != null)
                 {
-                    var quote = response.Result[0];
-                    var market = quote.MarketStack;
+                    var quantity = (decimal)BigInteger.Parse(market.FloorListing.PriceDetails.Amount.Value) /
+                                   (decimal)BigInteger.Pow(10, 18);
+                    m_FloorPriceText.text = $"Floor price: {quantity} IMR";
+                }
+                else
+                {
+                    m_FloorPriceText.text = "Floor price: N/A";
+                }
 
-                    if (market?.FloorListing != null)
-                    {
-                        var quantity = (decimal)BigInteger.Parse(market.FloorListing.PriceDetails.Amount.Value) /
-                                       (decimal)BigInteger.Pow(10, 18);
-                        m_FloorPriceText.text = $"Floor price: {quantity} IMR";
-                    }
-                    else
-                    {
-                        m_FloorPriceText.text = "Floor price: N/A";
-                    }
-
-                    if (market?.LastTrade?.PriceDetails?.Count > 0)
-                    {
-                        var quantity = (decimal)BigInteger.Parse(market.LastTrade.PriceDetails[0].Amount.Value) /
-                                       (decimal)BigInteger.Pow(10, 18);
-                        m_LastTradePriceText.text = $"Last trade price: {quantity} IMR";
-                    }
-                    else
-                    {
-                        m_LastTradePriceText.text = "Last trade price: N/A";
-                    }
+                if (market?.LastTrade?.PriceDetails?.Count > 0)
+                {
+                    var quantity = (decimal)BigInteger.Parse(market.LastTrade.PriceDetails[0].Amount.Value) /
+                                   (decimal)BigInteger.Pow(10, 18);
+                    m_LastTradePriceText.text = $"Last trade price: {quantity} IMR";
+                }
+                else
+                {
+                    m_LastTradePriceText.text = "Last trade price: N/A";
                 }
             }
             catch (ApiException e)
             {
                 Debug.LogError("Exception when calling: " + e.Message);
                 Debug.LogError("Status Code: " + e.ErrorCode);
+                Debug.LogError("Error Content: " + e.ErrorContent);
                 Debug.LogError(e.StackTrace);
             }
             catch (Exception ex)
@@ -286,78 +275,46 @@ namespace HyperCasual.Runner
             }
         }
 
-        /// <summary>
-        ///     Gets the details for the listing
-        /// </summary>
-        private async UniTask<Listing> GetListing(string listingId) // TODO To replace with get stack by ID endpoint
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var url = $"{Config.BASE_URL}/v1/chains/{Config.CHAIN_NAME}/orders/listings/{listingId}";
-                Debug.Log($"Get listing URL: {url}");
-
-                var response = await client.GetAsync(url);
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseBody = await response.Content.ReadAsStringAsync();
-                    var orderResponse = JsonUtility.FromJson<OrderResponse>(responseBody);
-
-                    return new Listing(
-                        orderResponse.result.id,
-                        new PriceDetails
-                        (
-                            new PriceDetailsToken(new ERC20Token(symbol: "IMR", contractAddress: Contract.TOKEN,
-                                decimals: 18)),
-                            new PaymentAmount(orderResponse.result.buy[0].amount, orderResponse.result.buy[0].amount),
-                            new PaymentAmount(orderResponse.result.buy[0].amount,
-                                orderResponse.result.buy[0].amount), // Mocked
-                            orderResponse.result.fees.Select(fee => new Immutable.Search.Model.Fee(
-                                    fee.amount, Immutable.Search.Model.Fee.TypeEnum.ROYALTY, fee.recipient_address))
-                                .ToList()
-                        ),
-                        orderResponse.result.sell[0].token_id,
-                        orderResponse.result.account_address,
-                        "1"
-                    );
-                }
-                else
-                {
-                    var responseBody = await response.Content.ReadAsStringAsync();
-                    Debug.Log($"Failed to get listing: {responseBody}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.Log($"Failed to get listing: {ex.Message}");
-            }
-
-            return null;
-        }
-
         private async UniTask<PrepareListing200Response> PrepareListing(
             string nftTokenAddress, string tokenId, string price, string erc20TokenAddress)
         {
-            // Define the NFT to sell, using its contract address and token ID
-            var nft = new ERC721Item(nftTokenAddress, tokenId);
+            // Create the NFT listing based on its contract type (ERC721 or ERC1155)
+            var sell = m_Asset.contract_type switch
+            {
+                var type when type == ERC1155Item.TypeEnum.ERC1155.ToString() => 
+                    (await m_CustomDialog.ShowDialog(
+                        $"How many {m_Asset.name} do you want to sell?",
+                        "Enter the amount below:",
+                        "Confirm",
+                        "Cancel",
+                        true
+                    )) is (true, var amount)
+                        ? new PrepareListingRequestSell(new ERC1155Item(amount, nftTokenAddress, tokenId))
+                        : throw new Exception("Sale cancelled by user"),
 
-            // Define the ERC20 token that the buyer will use to purchase the NFT
+                var type when type == ERC721Item.TypeEnum.ERC721.ToString() => 
+                    new PrepareListingRequestSell(new ERC721Item(nftTokenAddress, tokenId)),
+
+                _ => throw new Exception($"Cannot sell {m_Asset.contract_type}")
+            };
+            
+            // Create the ERC20 token item for the purchase
             var buy = new ERC20Item(price, erc20TokenAddress);
 
-            // Call the Orderbook function to prepare the listing for sale
-            return await m_TsApi.PrepareListingAsync(
-                new PrepareListingRequest
-                (
-                    makerAddress: SaveManager.Instance.WalletAddress,
-                    sell: new PrepareListingRequestSell(nft),
-                    buy: new PrepareListingRequestBuy(buy)
-                ));
+            // Prepare the listing for sale
+            return await m_OrderbookApi.PrepareListingAsync(new PrepareListingRequest
+            (
+                makerAddress: SaveManager.Instance.WalletAddress,
+                sell: sell,
+                buy: new PrepareListingRequestBuy(buy)
+            ));
         }
 
         private async UniTask SignAndSubmitApproval(PrepareListing200Response prepareListingResponse)
         {
-            var transactionAction = prepareListingResponse.Actions.FirstOrDefault(action =>
-                ReferenceEquals(action.ActualInstance, typeof(TransactionAction)));
+            var transactionAction =
+                prepareListingResponse.Actions.FirstOrDefault(action => action.ActualInstance.GetType() == typeof(TransactionAction));
+            
             // Send approval transaction if it is required
             if (transactionAction != null)
             {
@@ -377,7 +334,7 @@ namespace HyperCasual.Runner
         private async UniTask<string> SignListing(PrepareListing200Response prepareListingResponse)
         {
             var signableAction =
-                prepareListingResponse.Actions.FirstOrDefault(action => action.GetSignableAction() != null);
+                prepareListingResponse.Actions.FirstOrDefault(action => action.ActualInstance.GetType() == typeof(SignableAction));
 
             if (signableAction == null) throw new Exception("No listing to sign");
 
@@ -411,6 +368,11 @@ namespace HyperCasual.Runner
 
                 return listingId;
             }
+            catch (ApiException e)
+            {
+                Debug.LogError($"API error: {e.Message} (Status Code: {e.ErrorCode})");
+                Debug.LogError(e.StackTrace);
+            }
             catch (Exception ex)
             {
                 Debug.Log($"Failed to sell: {ex.Message}");
@@ -429,7 +391,7 @@ namespace HyperCasual.Runner
         private async UniTask<string> ListAsset(string signature,
             PrepareListing200Response preparedListing)
         {
-            var createListingResponse = await m_TsApi.CreateListingAsync(
+            var createListingResponse = await m_OrderbookApi.CreateListingAsync(
                 new CreateListingRequest
                 (
                     new List<FeeValue>(),
@@ -456,7 +418,7 @@ namespace HyperCasual.Runner
                 var request = new CancelOrdersOnChainRequest(
                     accountAddress: SaveManager.Instance.WalletAddress,
                     orderIds: new List<string> { m_Listing.id });
-                var response = await m_TsApi.CancelOrdersOnChainAsync(request);
+                var response = await m_OrderbookApi.CancelOrdersOnChainAsync(request);
 
                 if (response?.CancellationAction.PopulatedTransactions.To != null)
                 {

@@ -109,7 +109,7 @@ namespace HyperCasual.Runner
                     {
                         var view = UIManager.Instance.GetView<AssetDetailsView>();
                         UIManager.Instance.Show(view);
-                        view.Initialise(m_Type, asset);
+                        view.Initialise(asset);
                     };
                 }
             }
