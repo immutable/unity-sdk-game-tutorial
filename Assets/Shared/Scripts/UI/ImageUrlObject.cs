@@ -19,6 +19,8 @@ namespace HyperCasual.Runner
         /// </summary>
         public async UniTask LoadUrl(string url)
         {
+            if (m_Image == null) return;
+            
             m_Image.gameObject.SetActive(false);
 
             if (string.IsNullOrEmpty(url)) return;

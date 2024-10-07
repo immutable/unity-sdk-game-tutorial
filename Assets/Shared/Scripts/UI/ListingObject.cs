@@ -10,8 +10,9 @@ namespace HyperCasual.Runner
 {
     public class ListingObject : View
     {
-        [SerializeField] private TextMeshProUGUI m_AmountText;
+        [SerializeField] private TextMeshProUGUI m_PriceText;
         [SerializeField] private TextMeshProUGUI m_TokenIdText;
+        [SerializeField] private TextMeshProUGUI m_AmountText;
         [SerializeField] private HyperCasualButton m_BuyButton;
         [SerializeField] private TextMeshProUGUI m_PlayersListingText;
         [SerializeField] private GameObject m_Progress;
@@ -28,7 +29,7 @@ namespace HyperCasual.Runner
         private void OnDisable()
         {
             m_TokenIdText.text = "";
-            m_AmountText.text = "";
+            m_PriceText.text = "";
 
             m_Listing = null;
         }
@@ -62,11 +63,12 @@ namespace HyperCasual.Runner
         private async void UpdateData()
         {
             m_TokenIdText.text = $"Token ID: {m_Listing.TokenId}";
+            m_AmountText.text = $"Amount: {m_Listing.Amount}";
 
-            // Price
             var amount = m_Listing.PriceDetails.Amount.Value;
             var quantity = (decimal)BigInteger.Parse(amount) / (decimal)BigInteger.Pow(10, 18);
-            m_AmountText.text = $"{quantity} IMR";
+            m_PriceText.text = $"{quantity} IMR";
+
         }
 
         /// <summary>

@@ -122,6 +122,7 @@ namespace HyperCasual.Runner
                 ShowLogoutButton(false);
                 ShowInventoryButton(false);
                 ShowMarketplaceButton(false);
+                ShowShopButton(false);
                 // Show loading
                 ShowLoading(true);
 
@@ -138,6 +139,7 @@ namespace HyperCasual.Runner
                 ShowLogoutButton(false);
                 ShowInventoryButton(false);
                 ShowMarketplaceButton(false);
+                ShowShopButton(false);
                 // Reset all other values
                 SaveManager.Instance.Clear();
                 m_Email.text = "";
@@ -151,6 +153,7 @@ namespace HyperCasual.Runner
                 ShowLogoutButton(true);
                 ShowInventoryButton(true);
                 ShowMarketplaceButton(true);
+                ShowShopButton(true);
             }
 
             // Hide loading

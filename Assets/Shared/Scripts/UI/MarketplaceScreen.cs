@@ -40,12 +40,20 @@ namespace HyperCasual.Runner
         // Template for displaying a stack
         [SerializeField] private OrderListObject m_StackObj;
 
+        private SearchApi m_SearchApi;
+
         // List to store the loaded stacks
         private readonly List<StackBundle> m_Stacks = new();
 
         // Pagination and loading state
         private bool m_IsLoadingMore;
         private Page m_Page;
+
+        public MarketplaceScreen()
+        {
+            var config = new Configuration { BasePath = Config.BASE_URL };
+            m_SearchApi = new SearchApi(config);
+        }
 
         /// <summary>
         ///     Resets the marketplace view, clearing the current stacks and resetting pagination.
@@ -173,8 +181,6 @@ namespace HyperCasual.Runner
             Debug.Log("Fetching stacks...");
 
             var stacks = new List<StackBundle>();
-            var config = new Configuration { BasePath = Config.BASE_URL };
-            var apiInstance = new SearchApi(config);
 
             try
             {
@@ -203,7 +209,7 @@ namespace HyperCasual.Runner
                 var trait = filters.Count > 0 ? JsonConvert.SerializeObject(filters) : null;
 
                 // Fetch stacks from the API
-                var result = await apiInstance.SearchStacksAsync(
+                var result = await m_SearchApi.SearchStacksAsync(
                     Config.CHAIN_NAME,
                     new List<string> { Contract.SKIN },
                     trait: trait,
