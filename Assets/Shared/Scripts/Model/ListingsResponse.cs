@@ -21,6 +21,7 @@ namespace HyperCasual.Runner
         public string id;
         public ListingStatus status;
         public List<ListingBuy> buy;
+        public List<ListingSell> sell;
     }
 
     [Serializable]
@@ -31,6 +32,12 @@ namespace HyperCasual.Runner
 
     [Serializable]
     public class ListingBuy
+    {
+        public string amount;
+    }
+    
+    [Serializable]
+    public class ListingSell
     {
         public string amount;
     }

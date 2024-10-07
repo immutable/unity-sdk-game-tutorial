@@ -16,8 +16,6 @@ using Immutable.Search.Model;
 using Newtonsoft.Json;
 using TMPro;
 using UnityEngine;
-using Action = Immutable.Orderbook.Model.Action;
-using ApiException = Immutable.Search.Client.ApiException;
 
 namespace HyperCasual.Runner
 {
@@ -62,9 +60,9 @@ namespace HyperCasual.Runner
 
         public AssetDetailsView()
         {
-            var tsConfig = new Configuration();
-            tsConfig.BasePath = Config.BASE_URL;
-            m_OrderbookApi = new OrderbookApi(tsConfig);
+            var orderbookConfig = new Configuration();
+            orderbookConfig.BasePath = Config.BASE_URL;
+            m_OrderbookApi = new OrderbookApi(orderbookConfig);
 
             var searchConfig = new Immutable.Search.Client.Configuration();
             searchConfig.BasePath = Config.BASE_URL;
@@ -152,7 +150,12 @@ namespace HyperCasual.Runner
             {
                 var amount = m_Listing.buy[0].amount;
                 var quantity = (decimal)BigInteger.Parse(amount) / (decimal)BigInteger.Pow(10, 18);
-                m_AmountText.text = $"{quantity} IMR";
+                m_AmountText.text = m_Asset.contract_type switch
+                {
+                    "ERC721" => $"{quantity} IMR",
+                    "ERC1155" => $"{m_Listing.sell[0].amount} for {quantity} IMR",
+                    _ => m_AmountText.text
+                };
             }
             else
             {
@@ -250,7 +253,7 @@ namespace HyperCasual.Runner
         /// </summary>
         private async void OnSellButtonClicked()
         {
-            var (result, price) = await m_CustomDialog.ShowDialog(
+            var (priceResult, price) = await m_CustomDialog.ShowDialog(
                 $"List {m_Asset.name} for sale",
                 "Enter your price below (in IMR):",
                 "Confirm",
@@ -258,40 +261,63 @@ namespace HyperCasual.Runner
                 true
             );
 
-            if (result)
+            if (!priceResult) return;
+            
+            var normalizedPrice = Math.Floor(decimal.Parse(price) * (decimal)BigInteger.Pow(10, 18));
+                
+            var amountToSell = "1";
+            if (m_Asset.contract_type == ERC1155Item.TypeEnum.ERC1155.ToString())
             {
-                m_SellButton.gameObject.SetActive(false);
-                m_Progress.gameObject.SetActive(true);
 
-                var amount = Math.Floor(decimal.Parse(price) * (decimal)BigInteger.Pow(10, 18));
+                var (amountResult, amount) = await m_CustomDialog.ShowDialog(
+                    $"How many {m_Asset.name} do you want to sell?",
+                    "Enter the amount below:",
+                    "Confirm",
+                    "Cancel",
+                    true
+                );
 
-                var listingId = await Sell($"{amount}");
-                Debug.Log($"Sell complete: Listing ID: {listingId}");
+                if (!amountResult) return;
 
-                m_SellButton.gameObject.SetActive(listingId == null);
-                m_CancelButton.gameObject.SetActive(listingId != null);
-                m_AmountText.text = listingId != null ? $"{price} IMR" : "Not listed";
-                m_Progress.gameObject.SetActive(false);
+                amountToSell = amount;
             }
+            
+            m_SellButton.gameObject.SetActive(false);
+            m_Progress.gameObject.SetActive(true);
+
+            var listingId = await Sell($"{normalizedPrice}", amountToSell);
+            Debug.Log($"Sell complete: Listing ID: {listingId}");
+
+            m_SellButton.gameObject.SetActive(listingId == null);
+            m_CancelButton.gameObject.SetActive(listingId != null);
+                
+            if (listingId != null)
+            {
+                m_AmountText.text = m_Asset.contract_type switch
+                {
+                    "ERC721" => $"{price} IMR",
+                    "ERC1155" => $"{amountToSell} for {price} IMR",
+                    _ => m_AmountText.text
+                };
+            }
+            else
+            {
+                m_AmountText.text = "Not listed";
+            }
+
+            m_Progress.gameObject.SetActive(false);
         }
 
         private async UniTask<PrepareListing200Response> PrepareListing(
-            string nftTokenAddress, string tokenId, string price, string erc20TokenAddress)
+            string nftTokenAddress, string tokenId, string price, string erc20TokenAddress, string amountToSell)
         {
+            Debug.Log("Prepare listing...");
+            
             // Create the NFT listing based on its contract type (ERC721 or ERC1155)
             var sell = m_Asset.contract_type switch
             {
-                var type when type == ERC1155Item.TypeEnum.ERC1155.ToString() => 
-                    (await m_CustomDialog.ShowDialog(
-                        $"How many {m_Asset.name} do you want to sell?",
-                        "Enter the amount below:",
-                        "Confirm",
-                        "Cancel",
-                        true
-                    )) is (true, var amount)
-                        ? new PrepareListingRequestSell(new ERC1155Item(amount, nftTokenAddress, tokenId))
-                        : throw new Exception("Sale cancelled by user"),
-
+                var type when type == ERC1155Item.TypeEnum.ERC1155.ToString() =>
+                    new PrepareListingRequestSell(new ERC1155Item(amountToSell, nftTokenAddress, tokenId)),
                 var type when type == ERC721Item.TypeEnum.ERC721.ToString() => 
                     new PrepareListingRequestSell(new ERC721Item(nftTokenAddress, tokenId)),
 
@@ -312,6 +338,8 @@ namespace HyperCasual.Runner
 
         private async UniTask SignAndSubmitApproval(PrepareListing200Response prepareListingResponse)
         {
+            Debug.Log("Sign and submit approval...");
+            
             var transactionAction =
                 prepareListingResponse.Actions.FirstOrDefault(action => action.ActualInstance.GetType() == typeof(TransactionAction));
             
@@ -333,6 +361,8 @@ namespace HyperCasual.Runner
 
         private async UniTask<string> SignListing(PrepareListing200Response prepareListingResponse)
         {
+            Debug.Log("Sign listing...");
+            
             var signableAction =
                 prepareListingResponse.Actions.FirstOrDefault(action => action.ActualInstance.GetType() == typeof(SignableAction));
 
@@ -349,13 +379,15 @@ namespace HyperCasual.Runner
         ///     Prepares the listing for the asset.
         /// </summary>
         /// <param name="price">The price of the asset in smallest unit.</param>
+        /// <param name="amountToSell">The amount to sell. This is only used for ERC1155</param>
         /// <returns>The listing ID is asset was successfully listed</returns>
-        private async UniTask<string?> Sell(string price)
+        private async UniTask<string?> Sell(string price, string amountToSell)
         {
             try
             {
-                PrepareListing200Response prepareListingResponse =
-                    await PrepareListing(m_Asset.contract_address, m_Asset.token_id, $"{price}", Contract.TOKEN);
+                var prepareListingResponse =
+                    await PrepareListing(m_Asset.contract_address, m_Asset.token_id, $"{price}",
+                        Contract.TOKEN, amountToSell);
 
                 await SignAndSubmitApproval(prepareListingResponse);
 
@@ -371,6 +403,7 @@ namespace HyperCasual.Runner
             catch (ApiException e)
             {
                 Debug.LogError($"API error: {e.Message} (Status Code: {e.ErrorCode})");
+                Debug.LogError($"API error content: {e.ErrorContent}");
                 Debug.LogError(e.StackTrace);
             }
             catch (Exception ex)
@@ -391,6 +424,8 @@ namespace HyperCasual.Runner
         private async UniTask<string> ListAsset(string signature,
             PrepareListing200Response preparedListing)
         {
+            Debug.Log("List asset...");
+            
             var createListingResponse = await m_OrderbookApi.CreateListingAsync(
                 new CreateListingRequest
                 (

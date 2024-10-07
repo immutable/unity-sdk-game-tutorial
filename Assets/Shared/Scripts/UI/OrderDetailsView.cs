@@ -36,16 +36,16 @@ namespace HyperCasual.Runner
         private readonly List<AttributeView> m_AttributeViews = new();
         private readonly List<ListingObject> m_ListingViews = new();
 
-        private readonly OrderbookApi m_TsApi;
+        private readonly OrderbookApi m_OrderbookApi;
         private Listing m_Listing;
 
         private StackBundle m_Order;
 
         public OrderDetailsView()
         {
-            var tsConfig = new Configuration();
-            tsConfig.BasePath = Config.BASE_URL;
-            m_TsApi = new OrderbookApi(tsConfig);
+            var orderbookConfig = new Configuration();
+            orderbookConfig.BasePath = Config.BASE_URL;
+            m_OrderbookApi = new OrderbookApi(orderbookConfig);
         }
 
         private async void OnEnable()
@@ -186,7 +186,7 @@ namespace HyperCasual.Runner
                     takerAddress: SaveManager.Instance.WalletAddress,
                     listingId: listing.ListingId,
                     takerFees: fees);
-                var createListingResponse = await m_TsApi.FulfillOrderAsync(request);
+                var createListingResponse = await m_OrderbookApi.FulfillOrderAsync(request);
 
                 if (createListingResponse.Actions.Count > 0)
                 {
