@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **TradeId** | **Guid** | Trade ID | 
 **TokenId** | **string** | Token id of the traded asset (uint256 as string) | 
-**PriceDetails** | [**List&lt;PriceDetails&gt;**](PriceDetails.md) | Price details, list of payments involved in this trade | 
+**PriceDetails** | [**List&lt;MarketPriceDetails&gt;**](MarketPriceDetails.md) | Price details, list of payments involved in this trade | 
 **Amount** | **string** | Amount of the trade (uint256 as string) | 
 **CreatedAt** | **DateTime** | When the trade was created | 
 

@@ -1,5 +1,5 @@
 /*
- * Indexer Search API
+ * Indexer Marketplace APIs
  *
  * This API implements endpoints to power data driven marketplace and game experiences
  *

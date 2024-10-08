@@ -6,7 +6,7 @@ Listing
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **ListingId** | **string** | Global Order identifier | 
-**PriceDetails** | [**PriceDetails**](PriceDetails.md) |  | 
+**PriceDetails** | [**MarketPriceDetails**](MarketPriceDetails.md) |  | 
 **TokenId** | **string** | Token ID | 
 **Creator** | **string** | ETH Address of listing creator | 
 **Amount** | **string** | Amount of token included in the listing | 

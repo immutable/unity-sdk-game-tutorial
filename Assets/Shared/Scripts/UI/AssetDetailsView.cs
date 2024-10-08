@@ -52,7 +52,8 @@ namespace HyperCasual.Runner
 
         private readonly List<AttributeView> m_Attributes = new();
 
-        private readonly SearchApi m_SearchApi;
+        private readonly StacksApi m_StacksApi;
+        private readonly PricingApi m_PricingApi;
         private readonly OrderbookApi m_OrderbookApi;
 
         private AssetModel m_Asset;
@@ -66,7 +67,8 @@ namespace HyperCasual.Runner
 
             var searchConfig = new Immutable.Search.Client.Configuration();
             searchConfig.BasePath = Config.BASE_URL;
-            m_SearchApi = new SearchApi(searchConfig);
+            m_StacksApi = new StacksApi(searchConfig);
+            m_PricingApi = new PricingApi(searchConfig);
         }
 
         private void OnEnable()
@@ -176,7 +178,7 @@ namespace HyperCasual.Runner
             
             try
             {
-                var response = await m_SearchApi.QuotesForStacksAsync(Config.CHAIN_NAME, m_Asset.contract_address,
+                var response = await m_PricingApi.QuotesForStacksAsync(Config.CHAIN_NAME, m_Asset.contract_address,
                     new List<Guid> { Guid.Parse(m_Asset.metadata_id) });
                 
                 if (response.Result.Count <= 0) return;

@@ -1,5 +1,5 @@
 /*
- * Indexer Search API
+ * Indexer Marketplace APIs
  *
  * This API implements endpoints to power data driven marketplace and game experiences
  *
@@ -44,7 +44,7 @@ namespace Immutable.Search.Model
         /// <param name="priceDetails">Price details, list of payments involved in this trade (required).</param>
         /// <param name="amount">Amount of the trade (uint256 as string) (required).</param>
         /// <param name="createdAt">When the trade was created (required).</param>
-        public LastTrade(Guid tradeId = default(Guid), string tokenId = default(string), List<PriceDetails> priceDetails = default(List<PriceDetails>), string amount = default(string), DateTime createdAt = default(DateTime))
+        public LastTrade(Guid tradeId = default(Guid), string tokenId = default(string), List<MarketPriceDetails> priceDetails = default(List<MarketPriceDetails>), string amount = default(string), DateTime createdAt = default(DateTime))
         {
             this.TradeId = tradeId;
             // to ensure "tokenId" is required (not null)
@@ -89,7 +89,7 @@ namespace Immutable.Search.Model
         /// </summary>
         /// <value>Price details, list of payments involved in this trade</value>
         [DataMember(Name = "price_details", IsRequired = true, EmitDefaultValue = true)]
-        public List<PriceDetails> PriceDetails { get; set; }
+        public List<MarketPriceDetails> PriceDetails { get; set; }
 
         /// <summary>
         /// Amount of the trade (uint256 as string)

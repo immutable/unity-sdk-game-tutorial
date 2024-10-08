@@ -1,4 +1,4 @@
-# Immutable.Search - the C# library for the Indexer Search API
+# Immutable.Search - the C# library for the Indexer Marketplace APIs
 
 This API implements endpoints to power data driven marketplace and game experiences
 
@@ -56,25 +56,28 @@ using Immutable.Search.Model;
 namespace Immutable.SearchExample
 {
 
-    public class BackfillExample : MonoBehaviour
+    public class QuotesForNFTsExample : MonoBehaviour
     {
         async void Start()
         {
             Configuration config = new Configuration();
             config.BasePath = "https://api.immutable.com";
-            var apiInstance = new SearchApi(config);
+            var apiInstance = new PricingApi(config);
             var chainName = imtbl-zkevm-testnet;  // string | The name of chain
-            var backfillRequest = new BackfillRequest(); // BackfillRequest | 
+            var contractAddress = "contractAddress_example";  // string | Contract address for collection that these token ids are on
+            var tokenId = new List<string>(); // List<string> | List of token ids to get pricing data for
+            var pageCursor = "pageCursor_example";  // string? | Encoded page cursor to retrieve previous or next page. Use the value returned in the response. (optional) 
 
             try
             {
-                // Backfills or re-indexes a given entity
-                await apiInstance.BackfillAsync(chainName, backfillRequest);
+                // Experimental: Get pricing data for a list of token ids
+                QuotesForNFTsResult result = await apiInstance.QuotesForNFTsAsync(chainName, contractAddress, tokenId, pageCursor);
+                Debug.Log(result);
                 Debug.Log("Done!");
             }
             catch (ApiException e)
             {
-                Debug.LogError("Exception when calling SearchApi.Backfill: " + e.Message );
+                Debug.LogError("Exception when calling PricingApi.QuotesForNFTs: " + e.Message );
                 Debug.LogError("Status Code: "+ e.ErrorCode);
                 Debug.LogError(e.StackTrace);
             }
@@ -91,47 +94,43 @@ All URIs are relative to *https://api.immutable.com*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
-*SearchApi* | [**Backfill**](SearchApi.md#backfill) | **POST** /v1/internal/chains/{chain_name}/backfill | Backfills or re-indexes a given entity
-*SearchApi* | [**QuotesForNFTs**](SearchApi.md#quotesfornfts) | **GET** /experimental/chains/{chain_name}/quotes/{contract_address}/nfts | Get pricing data for a list of token ids
-*SearchApi* | [**QuotesForStacks**](SearchApi.md#quotesforstacks) | **GET** /experimental/chains/{chain_name}/quotes/{contract_address}/stacks | Get pricing data for a list of stack ids
-*SearchApi* | [**SearchStacks**](SearchApi.md#searchstacks) | **GET** /experimental/chains/{chain_name}/search/stacks | Search NFT stacks
+*PricingApi* | [**QuotesForNFTs**](PricingApi.md#quotesfornfts) | **GET** /experimental/chains/{chain_name}/quotes/{contract_address}/nfts | Experimental: Get pricing data for a list of token ids
+*PricingApi* | [**QuotesForStacks**](PricingApi.md#quotesforstacks) | **GET** /experimental/chains/{chain_name}/quotes/{contract_address}/stacks | Experimental: Get pricing data for a list of stack ids
+*StacksApi* | [**SearchNFTs**](StacksApi.md#searchnfts) | **GET** /experimental/chains/{chain_name}/search/nfts | Experimental: Search NFTs
+*StacksApi* | [**SearchStacks**](StacksApi.md#searchstacks) | **GET** /experimental/chains/{chain_name}/search/stacks | Experimental: Search NFT stacks
 
 
 <a id="documentation-for-models"></a>
 ## Documentation for Models
 
  - [Model.APIError400](APIError400.md)
- - [Model.APIError400AllOf](APIError400AllOf.md)
  - [Model.APIError401](APIError401.md)
- - [Model.APIError401AllOf](APIError401AllOf.md)
  - [Model.APIError403](APIError403.md)
- - [Model.APIError403AllOf](APIError403AllOf.md)
  - [Model.APIError404](APIError404.md)
- - [Model.APIError404AllOf](APIError404AllOf.md)
- - [Model.APIError409](APIError409.md)
- - [Model.APIError409AllOf](APIError409AllOf.md)
  - [Model.APIError429](APIError429.md)
- - [Model.APIError429AllOf](APIError429AllOf.md)
  - [Model.APIError500](APIError500.md)
- - [Model.APIError500AllOf](APIError500AllOf.md)
  - [Model.BackfillRequest](BackfillRequest.md)
  - [Model.BasicAPIError](BasicAPIError.md)
  - [Model.Chain](Chain.md)
- - [Model.ERC20Token](ERC20Token.md)
- - [Model.Fee](Fee.md)
  - [Model.LastTrade](LastTrade.md)
  - [Model.Listing](Listing.md)
  - [Model.Market](Market.md)
+ - [Model.MarketNft](MarketNft.md)
+ - [Model.MarketPriceDetails](MarketPriceDetails.md)
+ - [Model.MarketPriceDetailsToken](MarketPriceDetailsToken.md)
+ - [Model.MarketPriceERC20Token](MarketPriceERC20Token.md)
+ - [Model.MarketPriceFees](MarketPriceFees.md)
+ - [Model.MarketPriceNativeToken](MarketPriceNativeToken.md)
+ - [Model.NFTBundle](NFTBundle.md)
  - [Model.NFTMetadataAttribute](NFTMetadataAttribute.md)
  - [Model.NFTMetadataAttributeValue](NFTMetadataAttributeValue.md)
  - [Model.NFTQuoteResult](NFTQuoteResult.md)
- - [Model.NativeToken](NativeToken.md)
+ - [Model.NFTWithStack](NFTWithStack.md)
  - [Model.Page](Page.md)
  - [Model.PaymentAmount](PaymentAmount.md)
- - [Model.PriceDetails](PriceDetails.md)
- - [Model.PriceDetailsToken](PriceDetailsToken.md)
  - [Model.QuotesForNFTsResult](QuotesForNFTsResult.md)
  - [Model.QuotesForStacksResult](QuotesForStacksResult.md)
+ - [Model.SearchNFTsResult](SearchNFTsResult.md)
  - [Model.SearchStacksResult](SearchStacksResult.md)
  - [Model.Stack](Stack.md)
  - [Model.StackBundle](StackBundle.md)
