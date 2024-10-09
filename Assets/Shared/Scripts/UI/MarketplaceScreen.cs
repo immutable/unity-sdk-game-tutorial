@@ -35,7 +35,7 @@ namespace HyperCasual.Runner
         [SerializeField] private TMP_Dropdown m_SpeedDropdown;
 
         // Infinite scrolling list of stacks
-        [SerializeField] private InfiniteScrollView m_ScrollView;
+        [SerializeField] private InfiniteScrollGridView m_ScrollView;
 
         // Template for displaying a stack
         [SerializeField] private OrderListObject m_StackObj;
@@ -149,7 +149,7 @@ namespace HyperCasual.Runner
             }
 
             // Load more stacks if nearing the end of the list
-            if (index >= m_Stacks.Count - 5 && !m_IsLoadingMore) LoadStacks();
+            if (index >= m_Stacks.Count - 8 && !m_IsLoadingMore) LoadStacks();
         }
 
         /// <summary>
@@ -213,7 +213,9 @@ namespace HyperCasual.Runner
                     Config.CHAIN_NAME,
                     new List<string> { Contract.SKIN },
                     trait: trait,
-                    pageSize: Config.PAGE_SIZE, pageCursor: nextCursor);
+                    onlyIfHasActiveListings: true,
+                    pageSize: Config.PAGE_SIZE, 
+                    pageCursor: nextCursor);
 
                 m_Page = result.Page;
                 return result.Result;

@@ -33,7 +33,6 @@ namespace HyperCasual.Runner
         [SerializeField] private TMP_Dropdown m_TypeDropdown;
 
         [SerializeField] private AssetListObject m_AssetObj;
-        [SerializeField] private Transform m_ListParent;
         [SerializeField] private InfiniteScrollGridView m_ScrollView;
         [SerializeField] private AddFunds m_AddFunds;
 
@@ -115,11 +114,7 @@ namespace HyperCasual.Runner
             }
 
             // Load more assets if nearing the end of the list
-            if (index >= m_Assets.Count - 5 && !m_IsLoadingMore)
-            {
-                Debug.Log("Inventory Load more");
-                LoadAssets();
-            }
+            if (index >= m_Assets.Count - 8 && !m_IsLoadingMore) LoadAssets();
         }
 
         /// <summary>

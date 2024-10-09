@@ -491,8 +491,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 4986908211239487415}
   m_HandleRect: {fileID: 2602276242752267194}
   m_Direction: 2
-  m_Value: 0
-  m_Size: 1
+  m_Value: 1
+  m_Size: 0.9425926
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -2971,7 +2971,6 @@ MonoBehaviour:
   m_Balance: {fileID: 7413814428584860172}
   m_TypeDropdown: {fileID: 3902948968200711973}
   m_AssetObj: {fileID: 9215591978314449373}
-  m_ListParent: {fileID: 3995018089020746221}
   m_ScrollView: {fileID: 6011150636714096262}
   m_AddFunds: {fileID: 0}
 --- !u!1 &7652146041976592896

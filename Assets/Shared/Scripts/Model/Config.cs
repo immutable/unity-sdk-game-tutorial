@@ -31,7 +31,7 @@ namespace HyperCasual.Runner
 
         public const string CHAIN_NAME = "imtbl-zkevm-devnet";
         public const string BASE_URL = "https://api.dev.immutable.com";
-        public const int PAGE_SIZE = 10;
+        public const int PAGE_SIZE = 20;
     }
 
     public static class Contract
