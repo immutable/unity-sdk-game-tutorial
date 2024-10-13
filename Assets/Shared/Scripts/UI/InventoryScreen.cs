@@ -8,9 +8,9 @@ using Immutable.Passport;
 using UnityEngine;
 using Xsolla.Core;
 using TMPro;
-using Immutable.Search.Client;
-using Immutable.Search.Model;
-using Immutable.Search.Api;
+using Immutable.Api.Client;
+using Immutable.Api.Model;
+using Immutable.Api.Api;
 
 namespace HyperCasual.Runner
 {
@@ -36,13 +36,21 @@ namespace HyperCasual.Runner
         [SerializeField] private InfiniteScrollGridView m_ScrollView;
         [SerializeField] private AddFunds m_AddFunds;
 
+        private StacksApi m_StacksApi;
+
         private AssetType m_Type = AssetType.Skin;
 
-        private readonly List<AssetModel> m_Assets = new();
+        private readonly List<NFTBundle> m_Assets = new();
 
         // Pagination
         private bool m_IsLoadingMore;
-        private PageModel m_Page;
+        private Page m_Page;
+        
+        public InventoryScreen()
+        {
+            var config = new Configuration { BasePath = Config.BASE_URL };
+            m_StacksApi = new StacksApi(config);
+        }
 
         /// <summary>
         ///     Sets up the inventory list and fetches the player's assets.
@@ -137,68 +145,47 @@ namespace HyperCasual.Runner
         }
 
         // Uses mocked stacks endpoint
-        private async UniTask<List<AssetModel>> GetAssets()
+        private async UniTask<List<NFTBundle>> GetAssets()
         {
             Debug.Log("Fetching assets...");
 
-            var assets = new List<AssetModel>();
+            var assets = new List<NFTBundle>();
 
             try
             {
-                var address = SaveManager.Instance.WalletAddress;
-
-                if (string.IsNullOrEmpty(address))
+                var nextCursor = m_Page?.NextCursor ?? null;
+                if (m_Page != null && string.IsNullOrEmpty(nextCursor))
                 {
-                    Debug.LogError("Could not get player's wallet");
+                    Debug.Log("No more assets to load");
                     return assets;
                 }
-
+                
                 var contractAddress = m_Type switch
                 {
                     AssetType.Skin => Contract.SKIN,
                     AssetType.Powerups => Contract.PACK,
                     _ => Contract.SKIN
                 };
-                var url =
-                    $"{Config.BASE_URL}/v1/chains/{Config.CHAIN_NAME}/accounts/{address}/nfts?contract_address={contractAddress}&page_size={Config.PAGE_SIZE}";
 
-                // Pagination
-                if (!string.IsNullOrEmpty(m_Page?.next_cursor))
-                {
-                    url += $"&page_cursor={m_Page.next_cursor}";
-                }
-                else if (m_Page != null && string.IsNullOrEmpty(m_Page?.next_cursor))
-                {
-                    Debug.Log("No more player assets to load");
-                    return assets;
-                }
-
-                using var client = new HttpClient();
-                var response = await client.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseBody = await response.Content.ReadAsStringAsync();
-                    Debug.Log($"Assets response: {responseBody}");
-
-                    if (!string.IsNullOrEmpty(responseBody))
-                    {
-                        var assetsResponse = JsonUtility.FromJson<AssetsResponse>(responseBody);
-                        assets = assetsResponse?.result ?? new List<AssetModel>();
-
-                        // Update pagination information
-                        m_Page = assetsResponse?.page;
-                    }
-                }
-                else
-                {
-                    // TODO use dialogs
-                    Debug.Log("Failed to fetch assets");
-                }
+                var result = await m_StacksApi.SearchNFTsAsync(
+                    chainName: Config.CHAIN_NAME,
+                    contractAddress: new List<string> { contractAddress },
+                    accountAddress: SaveManager.Instance.WalletAddress,
+                    onlyIncludeOwnerListings: true,
+                    pageSize: Config.PAGE_SIZE,
+                    pageCursor: nextCursor);
+                
+                m_Page = result.Page;
+                return result.Result;
+            }
+            catch (ApiException e)
+            {
+                Debug.LogError($"API error: {e.Message} (Status Code: {e.ErrorCode})");
+                Debug.LogError(e.StackTrace);
             }
             catch (Exception ex)
             {
-                Debug.Log($"Failed to fetch assets: {ex.Message}");
+                Debug.LogError($"Error fetching NFTs: {ex.Message}");
             }
 
             return assets;

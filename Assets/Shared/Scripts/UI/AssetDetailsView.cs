@@ -11,11 +11,14 @@ using Immutable.Orderbook.Client;
 using Immutable.Orderbook.Model;
 using Immutable.Passport;
 using Immutable.Passport.Model;
-using Immutable.Search.Api;
-using Immutable.Search.Model;
+using Immutable.Api.Api;
+using Immutable.Api.Model;
 using Newtonsoft.Json;
 using TMPro;
 using UnityEngine;
+using ERC1155Item = Immutable.Orderbook.Model.ERC1155Item;
+using ERC20Item = Immutable.Orderbook.Model.ERC20Item;
+using ERC721Item = Immutable.Orderbook.Model.ERC721Item;
 
 namespace HyperCasual.Runner
 {
@@ -53,22 +56,15 @@ namespace HyperCasual.Runner
         private readonly List<AttributeView> m_Attributes = new();
 
         private readonly StacksApi m_StacksApi;
-        private readonly PricingApi m_PricingApi;
         private readonly OrderbookApi m_OrderbookApi;
 
-        private AssetModel m_Asset;
-        private OldListing? m_Listing;
+        private NFTBundle m_Asset;
+        private string? m_ListingId;
 
         public AssetDetailsView()
         {
-            var orderbookConfig = new Configuration();
-            orderbookConfig.BasePath = Config.BASE_URL;
-            m_OrderbookApi = new OrderbookApi(orderbookConfig);
-
-            var searchConfig = new Immutable.Search.Client.Configuration();
-            searchConfig.BasePath = Config.BASE_URL;
-            m_StacksApi = new StacksApi(searchConfig);
-            m_PricingApi = new PricingApi(searchConfig);
+            m_OrderbookApi = new OrderbookApi(new Configuration { BasePath = Config.BASE_URL });
+            m_StacksApi = new StacksApi(new Immutable.Api.Client.Configuration { BasePath = Config.BASE_URL });
         }
 
         private void OnEnable()
@@ -108,33 +104,31 @@ namespace HyperCasual.Runner
         ///     Initialises the UI based on the asset.
         /// </summary>
         /// <param name="asset">The asset to display.</param>
-        public async void Initialise(AssetModel asset)
+        public async void Initialise(NFTBundle asset)
         {
             m_Asset = asset;
 
-            m_NameText.text = m_Asset.contract_type switch
+            m_NameText.text = m_Asset.NftWithStack.ContractType.ToUpper() switch
             {
-                "ERC721" => $"{m_Asset.name} #{m_Asset.token_id}",
-                "ERC1155" => $"{m_Asset.name} x{m_Asset.balance}",
+                "ERC721" => $"{m_Asset.NftWithStack.Name} #{m_Asset.NftWithStack.TokenId}",
+                "ERC1155" => $"{m_Asset.NftWithStack.Name} x{m_Asset.NftWithStack.Balance}",
                 _ => m_NameText.text
             };
 
-            m_DescriptionText.text = m_Asset.description;
-            m_DescriptionText.gameObject.SetActive(!string.IsNullOrEmpty(m_Asset.description));
+            m_DescriptionText.text = m_Asset.NftWithStack.Description;
+            m_DescriptionText.gameObject.SetActive(!string.IsNullOrEmpty(m_Asset.NftWithStack.Description));
 
             // Details
-            m_TokenIdText.text = $"Token ID: {m_Asset.token_id}";
-            m_CollectionText.text = $"Collection: {m_Asset.contract_address}";
-            m_ContractTypeText.text = $"Contract type: {m_Asset.contract_type}";
+            m_TokenIdText.text = $"Token ID: {m_Asset.NftWithStack.TokenId}";
+            m_CollectionText.text = $"Collection: {m_Asset.NftWithStack.ContractAddress}";
+            m_ContractTypeText.text = $"Contract type: {m_Asset.NftWithStack.ContractType.ToUpper()}";
 
             // Clear existing attributes
             ClearAttributes();
             
             // Populate attributes
-            foreach (var a in m_Asset.attributes)
+            foreach (var attribute in m_Asset.NftWithStack.Attributes)
             {
-                NFTMetadataAttribute attribute = new(traitType: a.trait_type,
-                    value: new NFTMetadataAttributeValue(a.value));
                 var newAttribute = Instantiate(m_AttributeObj, m_AttributesListParent);
                 newAttribute.gameObject.SetActive(true);
                 newAttribute.Initialise(attribute);
@@ -142,20 +136,21 @@ namespace HyperCasual.Runner
             }
 
             // Check if asset is listed
-            m_Listing = await GetActiveListingId();
-            m_SellButton.gameObject.SetActive(m_Listing == null);
-            m_CancelButton.gameObject.SetActive(m_Listing != null);
+            m_ListingId = m_Asset.Listings.Count > 0 ? m_Asset.Listings[0].ListingId : null;
+            m_SellButton.gameObject.SetActive(m_ListingId == null);
+            m_CancelButton.gameObject.SetActive(m_ListingId != null);
 
             // Price if it's listed
             m_AmountText.text = "-";
-            if (m_Listing != null)
+            if (m_Asset.Listings.Count > 0)
             {
-                var amount = m_Listing.buy[0].amount;
+                Listing listing = m_Asset.Listings[0];
+                var amount = listing.PriceDetails.Amount.Value;
                 var quantity = (decimal)BigInteger.Parse(amount) / (decimal)BigInteger.Pow(10, 18);
-                m_AmountText.text = m_Asset.contract_type switch
+                m_AmountText.text = m_Asset.NftWithStack.ContractType.ToUpper() switch
                 {
                     "ERC721" => $"{quantity} IMR",
-                    "ERC1155" => $"{m_Listing.sell[0].amount} for {quantity} IMR",
+                    "ERC1155" => $"{listing.PriceDetails.Amount} for {quantity} IMR",
                     _ => m_AmountText.text
                 };
             }
@@ -167,87 +162,33 @@ namespace HyperCasual.Runner
             GetMarketData();
 
 #pragma warning disable CS4014
-            m_Image.LoadUrl(m_Asset.image);
+            m_Image.LoadUrl(m_Asset.NftWithStack.Image);
 #pragma warning restore CS4014
         }
 
         private async void GetMarketData()
         {
-            m_FloorPriceText.text = "Floor price: -";
-            m_LastTradePriceText.text = "Last trade price: -";
-            
-            try
+            if (m_Asset.Market?.FloorListing != null)
             {
-                var response = await m_PricingApi.QuotesForStacksAsync(Config.CHAIN_NAME, m_Asset.contract_address,
-                    new List<Guid> { Guid.Parse(m_Asset.metadata_id) });
-                
-                if (response.Result.Count <= 0) return;
-                
-                var quote = response.Result[0];
-                var market = quote.MarketStack;
-
-                if (market?.FloorListing != null)
-                {
-                    var quantity = (decimal)BigInteger.Parse(market.FloorListing.PriceDetails.Amount.Value) /
-                                   (decimal)BigInteger.Pow(10, 18);
-                    m_FloorPriceText.text = $"Floor price: {quantity} IMR";
-                }
-                else
-                {
-                    m_FloorPriceText.text = "Floor price: N/A";
-                }
-
-                if (market?.LastTrade?.PriceDetails?.Count > 0)
-                {
-                    var quantity = (decimal)BigInteger.Parse(market.LastTrade.PriceDetails[0].Amount.Value) /
-                                   (decimal)BigInteger.Pow(10, 18);
-                    m_LastTradePriceText.text = $"Last trade price: {quantity} IMR";
-                }
-                else
-                {
-                    m_LastTradePriceText.text = "Last trade price: N/A";
-                }
+                var quantity = (decimal)BigInteger.Parse(m_Asset.Market.FloorListing.PriceDetails.Amount.Value) /
+                               (decimal)BigInteger.Pow(10, 18);
+                m_FloorPriceText.text = $"Floor price: {quantity} IMR";
             }
-            catch (ApiException e)
+            else
             {
-                Debug.LogError("Exception when calling: " + e.Message);
-                Debug.LogError("Status Code: " + e.ErrorCode);
-                Debug.LogError("Error Content: " + e.ErrorContent);
-                Debug.LogError(e.StackTrace);
-            }
-            catch (Exception ex)
-            {
-                Debug.Log($"Failed to get market data: {ex.Message}");
-            }
-        }
-
-        // TODO not required one we have the NFT search endpoint
-        private async UniTask<OldListing?> GetActiveListingId()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var url =
-                    $"{Config.BASE_URL}/v1/chains/{Config.CHAIN_NAME}/orders/listings?sell_item_contract_address={m_Asset.contract_address}&sell_item_token_id={m_Asset.token_id}&status=ACTIVE";
-                Debug.Log($"GetActiveListingId URL: {url}");
-
-                var response = await client.GetAsync(url);
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseBody = await response.Content.ReadAsStringAsync();
-                    var listingResponse = JsonUtility.FromJson<ListingsResponse>(responseBody);
-
-                    // Check if the listing exists
-                    if (listingResponse.result.Count > 0 && listingResponse.result[0].status.name == "ACTIVE")
-                        return listingResponse.result[0];
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.Log($"Failed to check sale status: {ex.Message}");
+                m_FloorPriceText.text = "Floor price: N/A";
             }
 
-            return null;
+            if (m_Asset.Market?.LastTrade?.PriceDetails?.Count > 0)
+            {
+                var quantity = (decimal)BigInteger.Parse(m_Asset.Market.LastTrade.PriceDetails[0].Amount.Value) /
+                               (decimal)BigInteger.Pow(10, 18);
+                m_LastTradePriceText.text = $"Last trade price: {quantity} IMR";
+            }
+            else
+            {
+                m_LastTradePriceText.text = "Last trade price: N/A";
+            }
         }
 
         /// <summary>
@@ -256,7 +197,7 @@ namespace HyperCasual.Runner
         private async void OnSellButtonClicked()
         {
             var (priceResult, price) = await m_CustomDialog.ShowDialog(
-                $"List {m_Asset.name} for sale",
+                $"List {m_Asset.NftWithStack.Name} for sale",
                 "Enter your price below (in IMR):",
                 "Confirm",
                 "Cancel",
@@ -268,11 +209,11 @@ namespace HyperCasual.Runner
             var normalizedPrice = Math.Floor(decimal.Parse(price) * (decimal)BigInteger.Pow(10, 18));
                 
             var amountToSell = "1";
-            if (m_Asset.contract_type == ERC1155Item.TypeEnum.ERC1155.ToString())
+            if (m_Asset.NftWithStack.ContractType.ToUpper() == ERC1155Item.TypeEnum.ERC1155.ToString())
             {
 
                 var (amountResult, amount) = await m_CustomDialog.ShowDialog(
-                    $"How many {m_Asset.name} do you want to sell?",
+                    $"How many {m_Asset.NftWithStack.Name} do you want to sell?",
                     "Enter the amount below:",
                     "Confirm",
                     "Cancel",
@@ -295,7 +236,7 @@ namespace HyperCasual.Runner
                 
             if (listingId != null)
             {
-                m_AmountText.text = m_Asset.contract_type switch
+                m_AmountText.text = m_Asset.NftWithStack.ContractType.ToUpper() switch
                 {
                     "ERC721" => $"{price} IMR",
                     "ERC1155" => $"{amountToSell} for {price} IMR",
@@ -316,14 +257,14 @@ namespace HyperCasual.Runner
             Debug.Log("Prepare listing...");
             
             // Create the NFT listing based on its contract type (ERC721 or ERC1155)
-            var sell = m_Asset.contract_type switch
+            var sell = m_Asset.NftWithStack.ContractType.ToUpper() switch
             {
                 var type when type == ERC1155Item.TypeEnum.ERC1155.ToString() =>
                     new PrepareListingRequestSell(new ERC1155Item(amountToSell, nftTokenAddress, tokenId)),
                 var type when type == ERC721Item.TypeEnum.ERC721.ToString() => 
                     new PrepareListingRequestSell(new ERC721Item(nftTokenAddress, tokenId)),
 
-                _ => throw new Exception($"Cannot sell {m_Asset.contract_type}")
+                _ => throw new Exception($"Cannot sell {m_Asset.NftWithStack.ContractType.ToUpper()}")
             };
             
             // Create the ERC20 token item for the purchase
@@ -388,7 +329,7 @@ namespace HyperCasual.Runner
             try
             {
                 var prepareListingResponse =
-                    await PrepareListing(m_Asset.contract_address, m_Asset.token_id, $"{price}",
+                    await PrepareListing(m_Asset.NftWithStack.ContractAddress, m_Asset.NftWithStack.TokenId, $"{price}",
                         Contract.TOKEN, amountToSell);
 
                 await SignAndSubmitApproval(prepareListingResponse);
@@ -445,7 +386,9 @@ namespace HyperCasual.Runner
         /// </summary>
         private async void OnCancelButtonClicked()
         {
-            Debug.Log($"Cancel listing {m_Listing.id}");
+            if (m_ListingId == null) return;
+            
+            Debug.Log($"Cancel listing {m_ListingId}");
 
             m_CancelButton.gameObject.SetActive(false);
             m_Progress.gameObject.SetActive(true);
@@ -454,7 +397,7 @@ namespace HyperCasual.Runner
             {
                 var request = new CancelOrdersOnChainRequest(
                     accountAddress: SaveManager.Instance.WalletAddress,
-                    orderIds: new List<string> { m_Listing.id });
+                    orderIds: new List<string> { m_ListingId });
                 var response = await m_OrderbookApi.CancelOrdersOnChainAsync(request);
 
                 if (response?.CancellationAction.PopulatedTransactions.To != null)
@@ -470,7 +413,7 @@ namespace HyperCasual.Runner
                     if (transactionResponse.status == "1")
                     {
                         // Validate that listing has been cancelled
-                        await ConfirmListingStatus(m_Listing.id, "CANCELLED");
+                        await ConfirmListingStatus(m_ListingId, "CANCELLED");
 
                         // TODO update to use get stack bundle by stack ID endpoint instead
 
@@ -507,7 +450,7 @@ namespace HyperCasual.Runner
                 responseBody =>
                 {
                     var listingResponse = JsonUtility.FromJson<ListingResponse>(responseBody);
-                    m_Listing = listingResponse.result;
+                    m_ListingId = listingResponse.result.id;
                     return listingResponse.result?.status.name == status;
                 });
 

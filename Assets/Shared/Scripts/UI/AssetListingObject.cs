@@ -1,7 +1,7 @@
 using System;
 using Cysharp.Threading.Tasks;
 using HyperCasual.Core;
-using Immutable.Search.Model;
+using Immutable.Api.Model;
 using TMPro;
 using UnityEngine;
 

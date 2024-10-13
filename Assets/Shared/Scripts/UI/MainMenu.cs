@@ -40,6 +40,10 @@ namespace HyperCasual.Runner
         private async void OnEnable()
         {
             ShowLoading(true);
+            ShowLogoutButton(false);
+            ShowInventoryButton(false);
+            ShowMarketplaceButton(false);
+            ShowShopButton(false);
             m_Email.gameObject.SetActive(false);
 
             // Set listener to 'Start' button

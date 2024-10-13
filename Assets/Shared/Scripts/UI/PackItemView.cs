@@ -1,4 +1,3 @@
-using Immutable.Search.Model;
 using TMPro;
 using UnityEngine;
 
@@ -17,7 +16,9 @@ namespace HyperCasual.Runner
         {
             m_ItemName.text = item.name;
             m_ItemAmount.text = $"x{item.amount.ToString()}";
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             m_ItemImage.LoadUrl(item.image);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
         }
     }
 }

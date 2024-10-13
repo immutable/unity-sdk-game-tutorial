@@ -1,10 +1,7 @@
-using System;
-using System.Net.Http;
 using System.Numerics;
-using Cysharp.Threading.Tasks;
+using Immutable.Api.Model;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace HyperCasual.Runner
 {
@@ -18,7 +15,7 @@ namespace HyperCasual.Runner
         [SerializeField] private TextMeshProUGUI m_AmountText;
         [SerializeField] private ImageUrlObject m_Image;
 
-        private AssetModel m_Asset;
+        private NFTBundle m_Asset;
 
         /// <summary>
         ///     Sets up the inventory list and fetches the player's assets.
@@ -31,7 +28,7 @@ namespace HyperCasual.Runner
         /// <summary>
         ///     Initialises the asset object with relevant data and updates the UI.
         /// </summary>
-        public void Initialise(AssetModel asset)
+        public void Initialise(NFTBundle asset)
         {
             m_Asset = asset;
             UpdateData();
@@ -44,20 +41,20 @@ namespace HyperCasual.Runner
         {
             if (m_Asset == null) return;
 
-            m_NameText.text = m_Asset.contract_type switch
+            m_NameText.text = m_Asset.NftWithStack.ContractType.ToUpper() switch
             {
-                "ERC721" => $"{m_Asset.name} #{m_Asset.token_id}",
-                "ERC1155" => $"{m_Asset.name} x{m_Asset.balance}",
+                "ERC721" => $"{m_Asset.NftWithStack.Name} #{m_Asset.NftWithStack.TokenId}",
+                "ERC1155" => $"{m_Asset.NftWithStack.Name} x{m_Asset.NftWithStack.Balance}",
                 _ => m_NameText.text
             };
 
-            m_AmountText.gameObject.SetActive(m_Asset.contract_type == "ERC721");
+            m_AmountText.gameObject.SetActive(m_Asset.NftWithStack.ContractType.ToUpper() == "ERC721");
             m_AmountText.text = "-";
 
-            OldListing listing = await GetActiveListingId();
+            Listing? listing = m_Asset.Listings.Count > 0 ? m_Asset.Listings[0] : null;
             if (listing != null)
             {
-                var amount = listing.buy[0].amount;
+                var amount = listing.PriceDetails.Amount.Value;
                 var quantity = (decimal)BigInteger.Parse(amount) / (decimal)BigInteger.Pow(10, 18);
                 m_AmountText.text = $"{quantity} IMR";
             }
@@ -67,37 +64,8 @@ namespace HyperCasual.Runner
             }
 
 #pragma warning disable CS4014
-            m_Image.LoadUrl(m_Asset.image);
+            m_Image.LoadUrl(m_Asset.NftWithStack.Image);
 #pragma warning restore CS4014
-        }
-
-        // TODO to remove
-        private async UniTask<OldListing> GetActiveListingId()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var url =
-                    $"{Config.BASE_URL}/v1/chains/{Config.CHAIN_NAME}/orders/listings?sell_item_contract_address={m_Asset.contract_address}&sell_item_token_id={m_Asset.token_id}&status=ACTIVE";
-                Debug.Log($"GetActiveListingId URL: {url}");
-
-                var response = await client.GetAsync(url);
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseBody = await response.Content.ReadAsStringAsync();
-                    var listingResponse = JsonUtility.FromJson<ListingsResponse>(responseBody);
-
-                    // Check if the listing exists
-                    if (listingResponse.result.Count > 0 && listingResponse.result[0].status.name == "ACTIVE")
-                        return listingResponse.result[0];
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.Log($"Failed to check sale status: {ex.Message}");
-            }
-
-            return null;
         }
     }
 }

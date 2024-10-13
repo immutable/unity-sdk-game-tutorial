@@ -7,9 +7,9 @@ using Immutable.Passport;
 using UnityEngine;
 using Xsolla.Core;
 using TMPro;
-using Immutable.Search.Client;
-using Immutable.Search.Model;
-using Immutable.Search.Api;
+using Immutable.Api.Client;
+using Immutable.Api.Model;
+using Immutable.Api.Api;
 
 namespace HyperCasual.Runner
 {
