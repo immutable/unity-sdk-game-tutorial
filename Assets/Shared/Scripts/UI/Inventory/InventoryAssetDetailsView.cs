@@ -123,7 +123,7 @@ namespace HyperCasual.Runner
             ClearAttributes();
             
             // Populate attributes
-            foreach (var attribute in m_Asset.NftWithStack.Attributes)
+            foreach (var attribute in m_Asset.NftWithStack.Attributes ?? new List<NFTMetadataAttribute>())
             {
                 var newAttribute = Instantiate(m_AttributeObj, m_AttributesListParent);
                 newAttribute.gameObject.SetActive(true);
@@ -140,13 +140,13 @@ namespace HyperCasual.Runner
             m_AmountText.text = "-";
             if (m_Asset.Listings.Count > 0)
             {
-                Listing listing = m_Asset.Listings[0];
+                var listing = m_Asset.Listings[0];
                 var amount = listing.PriceDetails.Amount.Value;
                 var quantity = (decimal)BigInteger.Parse(amount) / (decimal)BigInteger.Pow(10, 18);
                 m_AmountText.text = m_Asset.NftWithStack.ContractType.ToUpper() switch
                 {
                     "ERC721" => $"{quantity} IMR",
-                    "ERC1155" => $"{listing.PriceDetails.Amount} for {quantity} IMR",
+                    "ERC1155" => $"{listing.Amount} for {quantity} IMR",
                     _ => m_AmountText.text
                 };
             }

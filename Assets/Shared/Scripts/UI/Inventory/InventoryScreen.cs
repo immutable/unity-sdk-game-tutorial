@@ -8,123 +8,103 @@ using TMPro;
 using Immutable.Api.Client;
 using Immutable.Api.Model;
 using Immutable.Api.Api;
-using UnityEngine.Serialization;
 
 namespace HyperCasual.Runner
 {
     /// <summary>
-    ///     The inventory view which displays the player's assets (e.g. skins).
+    /// Represents the Inventory screen displaying the player’s NFTs, such as skins and power-ups.
     /// </summary>
     public class InventoryScreen : View
     {
-        public enum AssetType
-        {
-            Skin,
-            Powerups
-        }
+        public enum AssetType { Skin, Powerups }
 
         [SerializeField] private HyperCasualButton m_BackButton;
         [SerializeField] private HyperCasualButton m_AddButton;
         [SerializeField] private AbstractGameEvent m_BackEvent;
         [SerializeField] private BalanceObject m_Balance;
-
         [SerializeField] private TMP_Dropdown m_TypeDropdown;
-
-        [FormerlySerializedAs("m_AssetObj")] [SerializeField] private InventoryListObject mInventoryObj;
+        [SerializeField] private InventoryListObject m_InventoryObj;
         [SerializeField] private InfiniteScrollGridView m_ScrollView;
         [SerializeField] private AddFunds m_AddFunds;
 
-        private StacksApi m_StacksApi;
-
+        private StacksApi m_StacksApi = new(new Configuration { BasePath = Config.BASE_URL });
         private AssetType m_Type = AssetType.Skin;
-
         private readonly List<NFTBundle> m_Assets = new();
-
-        // Pagination
         private bool m_IsLoadingMore;
         private Page m_Page;
-        
-        public InventoryScreen()
+
+        private void OnEnable()
         {
-            var config = new Configuration { BasePath = Config.BASE_URL };
-            m_StacksApi = new StacksApi(config);
+            m_InventoryObj.gameObject.SetActive(false);
+            ConfigureButtons();
+            ConfigureFilters();
+
+            m_ScrollView.OnCreateItemView += OnCreateItemView;
+
+            if (!m_Assets.Any()) LoadAssets();
+            m_Balance.UpdateBalance();
         }
 
         /// <summary>
-        ///     Sets up the inventory list and fetches the player's assets.
+        /// Configures the back and add buttons with their respective listeners.
         /// </summary>
-        private async void OnEnable()
+        private void ConfigureButtons()
         {
-            // Hide asset template item
-            mInventoryObj.gameObject.SetActive(false);
-
             m_BackButton.RemoveListener(OnBackButtonClick);
             m_BackButton.AddListener(OnBackButtonClick);
 
             m_AddButton.RemoveListener(OnAddFundsButtonClick);
             m_AddButton.AddListener(OnAddFundsButtonClick);
-
-            // Setup infinite scroll view and load assets
-            m_ScrollView.OnCreateItemView += OnCreateItemView;
-            if (m_Assets.Count == 0) LoadAssets();
-
-            m_Balance.UpdateBalance();
-
-            SetupFilters();
         }
 
         /// <summary>
-        ///     Configures the dropdown filters
+        /// Sets up the filter dropdown
         /// </summary>
-        private void SetupFilters()
+        private void ConfigureFilters()
         {
-            var types = Enum.GetNames(typeof(AssetType)).ToList();
-
             m_TypeDropdown.ClearOptions();
-            m_TypeDropdown.AddOptions(types);
-            m_TypeDropdown.value = 0;
+            m_TypeDropdown.AddOptions(Enum.GetNames(typeof(AssetType)).ToList());
+            m_TypeDropdown.value = m_Type == AssetType.Skin ? 0 : 1;
 
             m_TypeDropdown.onValueChanged.AddListener(delegate
             {
-                Reset();
-                int selectedIndex = m_TypeDropdown.value;
-                m_Type = (AssetType)Enum.GetValues(typeof(AssetType)).GetValue(selectedIndex);
+                ResetInventory();
+                m_Type = (AssetType)m_TypeDropdown.value;
                 LoadAssets();
             });
         }
 
         /// <summary>
-        ///     Configures the asset list item view
+        /// Handles the creation of each item in the inventory list.
         /// </summary>
+        /// <param name="index">The index of the asset in the list.</param>
+        /// <param name="item">The game object representing the asset view.</param>
         private void OnCreateItemView(int index, GameObject item)
         {
-            if (index < m_Assets.Count)
-            {
-                var asset = m_Assets[index];
+            if (index >= m_Assets.Count) return;
 
-                // Initialise the view with asset
-                var itemComponent = item.GetComponent<InventoryListObject>();
-                itemComponent.Initialise(asset);
-                // Set up click listener
-                var clickable = item.GetComponent<ClickableView>();
-                if (clickable != null)
+            var asset = m_Assets[index];
+            var itemComponent = item.GetComponent<InventoryListObject>();
+            itemComponent.Initialise(asset);
+
+            var clickable = item.GetComponent<ClickableView>();
+            if (clickable != null)
+            {
+                clickable.ClearAllSubscribers();
+                clickable.OnClick += () =>
                 {
-                    clickable.ClearAllSubscribers();
-                    clickable.OnClick += () =>
-                    {
-                        var view = UIManager.Instance.GetView<InventoryAssetDetailsView>();
-                        UIManager.Instance.Show(view);
-                        view.Initialise(asset);
-                    };
-                }
+                    var view = UIManager.Instance.GetView<InventoryAssetDetailsView>();
+                    UIManager.Instance.Show(view);
+                    view.Initialise(asset);
+                };
             }
 
-            // Load more assets if nearing the end of the list
-            if (index >= m_Assets.Count - 8 && !m_IsLoadingMore) LoadAssets();
+            if (index >= m_Assets.Count - 8 && !m_IsLoadingMore)
+                LoadAssets();
         }
 
         /// <summary>
-        ///     Loads assets and adds them to the scroll view.
+        /// Loads the player's assets and adds them to the inventory view.
         /// </summary>
         private async void LoadAssets()
         {
@@ -133,7 +113,7 @@ namespace HyperCasual.Runner
             m_IsLoadingMore = true;
 
             var assets = await GetAssets();
-            if (assets != null && assets.Count > 0)
+            if (assets.Any())
             {
                 m_Assets.AddRange(assets);
                 m_ScrollView.TotalItemCount = m_Assets.Count;
@@ -142,37 +122,34 @@ namespace HyperCasual.Runner
             m_IsLoadingMore = false;
         }
 
-        // Uses mocked stacks endpoint
+        /// <summary>
+        /// Fetches the player’s NFTs from the API based on the selected asset type.
+        /// </summary>
+        /// <returns>A list of NFT bundles.</returns>
         private async UniTask<List<NFTBundle>> GetAssets()
         {
             Debug.Log("Fetching assets...");
 
-            var assets = new List<NFTBundle>();
-
             try
             {
-                var nextCursor = m_Page?.NextCursor ?? null;
+                var nextCursor = m_Page?.NextCursor;
                 if (m_Page != null && string.IsNullOrEmpty(nextCursor))
                 {
-                    Debug.Log("No more assets to load");
-                    return assets;
+                    Debug.Log("No more assets to load.");
+                    return new List<NFTBundle>();
                 }
-                
-                var contractAddress = m_Type switch
-                {
-                    AssetType.Skin => Contract.SKIN,
-                    AssetType.Powerups => Contract.PACK,
-                    _ => Contract.SKIN
-                };
+
+                var contractAddress = m_Type == AssetType.Skin ? Contract.SKIN : Contract.PACK;
 
                 var result = await m_StacksApi.SearchNFTsAsync(
-                    chainName: Config.CHAIN_NAME,
-                    contractAddress: new List<string> { contractAddress },
-                    accountAddress: SaveManager.Instance.WalletAddress,
+                    Config.CHAIN_NAME,
+                    new List<string> { contractAddress },
+                    SaveManager.Instance.WalletAddress,
                     onlyIncludeOwnerListings: true,
                     pageSize: Config.PAGE_SIZE,
-                    pageCursor: nextCursor);
-                
+                    pageCursor: nextCursor
+                );
+
                 m_Page = result.Page;
                 return result.Result;
             }
@@ -186,38 +163,32 @@ namespace HyperCasual.Runner
                 Debug.LogError($"Error fetching NFTs: {ex.Message}");
             }
 
-            return assets;
+            return new List<NFTBundle>();
         }
 
         /// <summary>
-        ///     Cleans up views and handles the back button click
+        /// Handles the back button click by resetting the view and raising the back event.
         /// </summary>
         private void OnBackButtonClick()
         {
-            Reset();
-
-            // Trigger back button event
+            ResetInventory();
             m_BackEvent.Raise();
         }
 
-        private void Reset()
+        /// <summary>
+        /// Resets the inventory to its default state.
+        /// </summary>
+        private void ResetInventory()
         {
-            // Reset default contract
             m_Type = AssetType.Skin;
-
-            // Clear the asset list
             m_Assets.Clear();
-
-            // Reset pagination information
             m_Page = null;
-
-            // Reset the InfiniteScrollView
             m_ScrollView.TotalItemCount = 0;
             m_ScrollView.Clear();
         }
 
         /// <summary>
-        ///     handles the add funds button click
+        /// Handles the add funds button click by showing the add funds view.
         /// </summary>
         private void OnAddFundsButtonClick()
         {
