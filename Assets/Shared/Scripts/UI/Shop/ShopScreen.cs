@@ -10,6 +10,7 @@ using TMPro;
 using Immutable.Api.Client;
 using Immutable.Api.Model;
 using Immutable.Api.Api;
+using UnityEngine.Serialization;
 
 namespace HyperCasual.Runner
 {
@@ -22,7 +23,7 @@ namespace HyperCasual.Runner
         [SerializeField] private HyperCasualButton m_AddButton;
         [SerializeField] private AbstractGameEvent m_BackEvent;
         [SerializeField] private BalanceObject m_Balance;
-        [SerializeField] private PackListObject m_PackObj;
+        [SerializeField] private ShopListObject m_ItemObj;
         [SerializeField] private Transform m_ListParent;
         [SerializeField] private InfiniteScrollGridView m_ScrollView;
         [SerializeField] private AddFunds m_AddFunds;
@@ -35,7 +36,7 @@ namespace HyperCasual.Runner
         private void OnEnable()
         {
             // Hide pack template item
-            m_PackObj.gameObject.SetActive(false);
+            m_ItemObj.gameObject.SetActive(false);
 
             m_BackButton.RemoveListener(OnBackButtonClick);
             m_BackButton.AddListener(OnBackButtonClick);
@@ -64,7 +65,7 @@ namespace HyperCasual.Runner
                 var pack = m_Packs[index];
 
                 // Initialise the view with asset
-                var itemComponent = item.GetComponent<PackListObject>();
+                var itemComponent = item.GetComponent<ShopListObject>();
                 itemComponent.Initialise(pack);
                 // Set up click listener
                 var clickable = item.GetComponent<ClickableView>();

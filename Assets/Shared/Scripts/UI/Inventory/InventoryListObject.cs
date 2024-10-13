@@ -8,7 +8,7 @@ namespace HyperCasual.Runner
     /// <summary>
     ///     Represents an asset in the player's inventory
     /// </summary>
-    public class AssetListObject : MonoBehaviour
+    public class InventoryListObject : MonoBehaviour
     {
         [SerializeField] private TextMeshProUGUI m_NameText;
         [SerializeField] private TextMeshProUGUI m_TokenIdText;

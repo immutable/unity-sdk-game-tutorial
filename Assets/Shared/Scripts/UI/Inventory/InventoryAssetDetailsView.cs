@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Numerics;
 using Cysharp.Threading.Tasks;
 using HyperCasual.Core;
@@ -11,7 +10,6 @@ using Immutable.Orderbook.Client;
 using Immutable.Orderbook.Model;
 using Immutable.Passport;
 using Immutable.Passport.Model;
-using Immutable.Api.Api;
 using Immutable.Api.Model;
 using Newtonsoft.Json;
 using TMPro;
@@ -22,7 +20,7 @@ using ERC721Item = Immutable.Orderbook.Model.ERC721Item;
 
 namespace HyperCasual.Runner
 {
-    public class AssetDetailsView : View
+    public class InventoryAssetDetailsView : View
     {
         [SerializeField] private HyperCasualButton m_BackButton;
         [SerializeField] private BalanceObject m_Balance;
@@ -55,16 +53,14 @@ namespace HyperCasual.Runner
 
         private readonly List<AttributeView> m_Attributes = new();
 
-        private readonly StacksApi m_StacksApi;
         private readonly OrderbookApi m_OrderbookApi;
 
         private NFTBundle m_Asset;
         private string? m_ListingId;
 
-        public AssetDetailsView()
+        public InventoryAssetDetailsView()
         {
             m_OrderbookApi = new OrderbookApi(new Configuration { BasePath = Config.BASE_URL });
-            m_StacksApi = new StacksApi(new Immutable.Api.Client.Configuration { BasePath = Config.BASE_URL });
         }
 
         private void OnEnable()

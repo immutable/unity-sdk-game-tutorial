@@ -38,7 +38,7 @@ namespace HyperCasual.Runner
         [SerializeField] private InfiniteScrollGridView m_ScrollView;
 
         // Template for displaying a stack
-        [SerializeField] private OrderListObject m_StackObj;
+        [SerializeField] private MarketplaceListObject m_StackObj;
 
         private StacksApi m_StacksApi;
 
@@ -131,7 +131,7 @@ namespace HyperCasual.Runner
                 var stack = m_Stacks[index];
 
                 // Initialise the item view with the stack data
-                var itemComponent = item.GetComponent<OrderListObject>();
+                var itemComponent = item.GetComponent<MarketplaceListObject>();
                 itemComponent.Initialise(stack);
 
                 // Set up click handling for the item
@@ -141,7 +141,7 @@ namespace HyperCasual.Runner
                     clickable.ClearAllSubscribers();
                     clickable.OnClick += () =>
                     {
-                        var view = UIManager.Instance.GetView<OrderDetailsView>();
+                        var view = UIManager.Instance.GetView<MarketplaceAssetDetailsView>();
                         UIManager.Instance.Show(view);
                         view.Initialise(stack);
                     };

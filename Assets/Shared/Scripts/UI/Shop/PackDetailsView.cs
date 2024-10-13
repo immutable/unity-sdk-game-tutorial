@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Numerics;
 using System.Text;
@@ -69,7 +68,9 @@ namespace HyperCasual.Runner
             m_Pack = pack;
             m_NameText.text = pack.name;
             m_DescriptionText.text = pack.description;
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             m_Image.LoadUrl(pack.image);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
             var quantity = (decimal)BigInteger.Parse(pack.price) / (decimal)BigInteger.Pow(10, 18);
             m_AmountText.text = $"{quantity} IMR";
@@ -114,7 +115,7 @@ namespace HyperCasual.Runner
                     return;
                 }
 
-                string responseBody = await response.Content.ReadAsStringAsync();
+                var responseBody = await response.Content.ReadAsStringAsync();
                 var approvalTransaction = JsonUtility.FromJson<Transaction>(responseBody);
 
                 if (approvalTransaction.data != null)

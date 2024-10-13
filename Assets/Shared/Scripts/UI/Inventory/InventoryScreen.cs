@@ -1,16 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using Cysharp.Threading.Tasks;
 using HyperCasual.Core;
-using Immutable.Passport;
 using UnityEngine;
-using Xsolla.Core;
 using TMPro;
 using Immutable.Api.Client;
 using Immutable.Api.Model;
 using Immutable.Api.Api;
+using UnityEngine.Serialization;
 
 namespace HyperCasual.Runner
 {
@@ -32,7 +30,7 @@ namespace HyperCasual.Runner
 
         [SerializeField] private TMP_Dropdown m_TypeDropdown;
 
-        [SerializeField] private AssetListObject m_AssetObj;
+        [FormerlySerializedAs("m_AssetObj")] [SerializeField] private InventoryListObject mInventoryObj;
         [SerializeField] private InfiniteScrollGridView m_ScrollView;
         [SerializeField] private AddFunds m_AddFunds;
 
@@ -58,7 +56,7 @@ namespace HyperCasual.Runner
         private async void OnEnable()
         {
             // Hide asset template item
-            m_AssetObj.gameObject.SetActive(false);
+            mInventoryObj.gameObject.SetActive(false);
 
             m_BackButton.RemoveListener(OnBackButtonClick);
             m_BackButton.AddListener(OnBackButtonClick);
@@ -105,7 +103,7 @@ namespace HyperCasual.Runner
                 var asset = m_Assets[index];
 
                 // Initialise the view with asset
-                var itemComponent = item.GetComponent<AssetListObject>();
+                var itemComponent = item.GetComponent<InventoryListObject>();
                 itemComponent.Initialise(asset);
                 // Set up click listener
                 var clickable = item.GetComponent<ClickableView>();
@@ -114,7 +112,7 @@ namespace HyperCasual.Runner
                     clickable.ClearAllSubscribers();
                     clickable.OnClick += () =>
                     {
-                        var view = UIManager.Instance.GetView<AssetDetailsView>();
+                        var view = UIManager.Instance.GetView<InventoryAssetDetailsView>();
                         UIManager.Instance.Show(view);
                         view.Initialise(asset);
                     };

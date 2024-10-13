@@ -9,7 +9,7 @@ namespace HyperCasual.Runner
     /// <summary>
     ///     Represents an individual list item in the marketplace view.
     /// </summary>
-    public class OrderListObject : MonoBehaviour
+    public class MarketplaceListObject : MonoBehaviour
     {
         [SerializeField] private TextMeshProUGUI m_NameText;
         [SerializeField] private TextMeshProUGUI m_AmountText;

@@ -16,7 +16,7 @@ using UnityEngine;
 
 namespace HyperCasual.Runner
 {
-    public class OrderDetailsView : View
+    public class MarketplaceAssetDetailsView : View
     {
         [SerializeField] private HyperCasualButton m_BackButton;
         [SerializeField] private BalanceObject m_Balance;
@@ -41,7 +41,7 @@ namespace HyperCasual.Runner
 
         private StackBundle m_Order;
 
-        public OrderDetailsView()
+        public MarketplaceAssetDetailsView()
         {
             var orderbookConfig = new Configuration();
             orderbookConfig.BasePath = Config.BASE_URL;

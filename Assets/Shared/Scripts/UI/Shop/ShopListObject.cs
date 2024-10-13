@@ -1,17 +1,12 @@
-using System;
-using System.Net.Http;
-using System.Numerics;
-using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace HyperCasual.Runner
 {
     /// <summary>
     ///     Represents an asset in the player's inventory
     /// </summary>
-    public class PackListObject : MonoBehaviour
+    public class ShopListObject : MonoBehaviour
     {
         [SerializeField] private TextMeshProUGUI m_NameText;
         [SerializeField] private TextMeshProUGUI m_DescriptionText;
