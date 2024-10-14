@@ -42,18 +42,17 @@ namespace HyperCasual.Runner
                     Debug.LogException(ex);
                 }
 
-                if (!conditionMet)
+                if (conditionMet) continue;
+                
+                // Check if timeout has been reached
+                if (Time.time * 1000 - startTimeMs > timeoutMs)
                 {
-                    // Check if timeout has been reached
-                    if (Time.time * 1000 - startTimeMs > timeoutMs)
-                    {
-                        Debug.LogWarning("Polling timed out.");
-                        return false;
-                    }
-
-                    await UniTask.Delay(
-                        pollIntervalMs); // Wait for the specified polling interval before checking again
+                    Debug.LogWarning("Polling timed out.");
+                    return false;
                 }
+
+                await UniTask.Delay(
+                    pollIntervalMs); // Wait for the specified polling interval before checking again
             }
 
             Debug.Log("Condition met, polling completed.");

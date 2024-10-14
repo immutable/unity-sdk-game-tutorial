@@ -18,7 +18,7 @@ namespace HyperCasual.Runner
     public class OrderbookManager
     {
         private static readonly Lazy<OrderbookManager> s_Instance = new(() => new OrderbookManager());
-
+        
         private readonly OrderbookApi m_OrderbookApi = new(new Configuration { BasePath = Config.BASE_URL });
 
         private OrderbookManager() { }
@@ -202,7 +202,7 @@ namespace HyperCasual.Runner
         private async UniTask ConfirmListingStatus(string listingId, string desiredStatus)
         {
             var isConfirmed = await PollingHelper.PollAsync(
-                $"{Config.BASE_URL}/v1/chains/imtbl-zkevm-devnet/orders/listings/{listingId}",
+                $"{Config.BASE_URL}/v1/chains/{Config.CHAIN_NAME}/orders/listings/{listingId}",
                 response =>
                 {
                     var listingResponse = JsonUtility.FromJson<ListingResponse>(response);
