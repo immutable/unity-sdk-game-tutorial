@@ -205,7 +205,6 @@ namespace HyperCasual.Runner
                     await ConfirmListingStatus();
                     m_Balance.UpdateBalance(); // Update user's balance on successful buy
 
-                    // TODO update to use get stack bundle by stack ID endpoint later
                     // Locally update stack listing
                     var listingToRemove = m_Order.Listings.FirstOrDefault(l => l.ListingId == listing.ListingId);
                     if (listingToRemove != null) m_Order.Listings.Remove(listingToRemove);
