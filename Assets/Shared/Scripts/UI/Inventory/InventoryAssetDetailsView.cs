@@ -32,7 +32,7 @@ namespace HyperCasual.Runner
         [SerializeField] private HyperCasualButton m_CancelButton;
         [SerializeField] private GameObject m_Progress;
         [SerializeField] private CustomDialog m_CustomDialog;
-        
+
         private StacksApi m_StacksApi = new(new Configuration { BasePath = Config.BASE_URL });
         private readonly List<AttributeView> m_Attributes = new();
         private NFTBundle? m_Asset;
@@ -98,9 +98,9 @@ namespace HyperCasual.Runner
                 attributeView.Initialise(attribute);
                 m_Attributes.Add(attributeView);
             }
-            
+
             UpdateListingStateAndPrice();
-            
+
             // Market data
             var floorListing = m_Asset!.Market?.FloorListing;
             m_FloorPriceText.text = floorListing != null
@@ -122,7 +122,7 @@ namespace HyperCasual.Runner
         {
             // Determine the listing ID based on the asset's listings
             m_ListingId = m_Asset!.Listings.Count > 0 ? m_Asset.Listings[0].ListingId : null;
-    
+
             // Set the visibility of the sell and cancel buttons
             m_SellButton.gameObject.SetActive(m_ListingId == null);
             m_CancelButton.gameObject.SetActive(m_ListingId != null);
@@ -157,7 +157,7 @@ namespace HyperCasual.Runner
         /// </summary>
         private async UniTask LoadAssetImage() =>
             await m_Image.LoadUrl(m_Asset!.NftWithStack.Image);
-        
+
         /// <summary>
         /// Fetches the latest NFT bundle data.
         /// </summary>
@@ -169,14 +169,17 @@ namespace HyperCasual.Runner
             {
                 var result = await m_StacksApi.SearchNFTsAsync(
                     chainName: Config.CHAIN_NAME,
-                    new List<string> { m_Asset.NftWithStack.ContractAddress },
+                    contractAddress: new List<string> { m_Asset.NftWithStack.ContractAddress },
+                    accountAddress: SaveManager.Instance.WalletAddress,
                     stackId: new List<Guid> { m_Asset.NftWithStack.StackId },
                     onlyIncludeOwnerListings: true);
-        
-                // Check if the result contains any NFT bundles
+
                 if (result.Result.Count > 0)
                 {
-                    return result.Result[0]; // Return the first NFT bundle
+                    return result.Result
+                        .Where(n => n.NftWithStack.TokenId == m_Asset.NftWithStack.TokenId)
+                        .DefaultIfEmpty(null)
+                        .FirstOrDefault();
                 }
             }
             catch (Exception ex)
@@ -184,7 +187,7 @@ namespace HyperCasual.Runner
                 Debug.LogError($"Failed to fetch NFT bundle data: {ex.Message}");
             }
 
-            return null; // Return null if fetching fails or no data is available
+            return null;
         }
 
         /// <summary>
@@ -253,7 +256,7 @@ namespace HyperCasual.Runner
                 var nftBundle = await GetNftBundle();
                 if (nftBundle != null)
                 {
-                    m_Asset.Listings.AddRange(nftBundle.Listings);
+                    m_Asset.Listings = new List<Listing> { nftBundle.Listings[0] };
                 }
             }
             catch (Exception ex)
@@ -292,7 +295,7 @@ namespace HyperCasual.Runner
                 await HandleError(ex, "Failed to cancel listing");
             }
         }
-        
+
         private async UniTask HandleError(Exception ex, string errorMessage)
         {
             Debug.LogException(ex);
@@ -307,7 +310,7 @@ namespace HyperCasual.Runner
             foreach (var attribute in m_Attributes) Destroy(attribute.gameObject);
             m_Attributes.Clear();
         }
-        
+
         private void OnDisable()
         {
             m_NameText.text = "";
